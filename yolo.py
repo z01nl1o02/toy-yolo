@@ -98,6 +98,7 @@ class YOLO(object):
         predCls = nd.slice_axis(pred, begin=0, end=self.numClass,axis=-1)
         predObj = nd.slice_axis(pred, begin=self.numClass, end=self.numClass+1,axis=-1)
         predXY = nd.slice_axis(pred, begin=self.numClass+1, end=self.numClass+3,axis=-1)
+        predXY = nd.sigmoid(predXY)
         predWH = nd.slice_axis(pred,begin=self.numClass+3,end=self.numClass+5,axis=-1)
         XYWH = nd.concat(predXY, predWH, dim=-1)
         return predCls, predObj, XYWH
@@ -117,11 +118,11 @@ class YOLO(object):
                 indx,indy = int(x0*W),int(y0*H) #different to paper, here using left-top to determinet cell
 
                 ious = []
-                pws, phs = [1,1],[1,1] #!!!!
+                pws, phs = [1/16.0,1/16.0],[1/16.0,2*1/16.0] #!!!!
                 #comparsion between anchor and object bbox(resized to last layer)
                 #so anchors stand for size estimation of target in last layer?
                 for pw, ph in zip(pws,phs):
-                    intersect = np.minimum(pw,w*W) * np.minimum(ph,h*H)
+                    intersect = np.minimum(pw,w) * np.minimum(ph,h)
                     ious.append( intersect / (pw*ph + w*h - intersect) )
                 bestBoxInd = int(np.argmax(ious))
                 boxMask[b,indy,indx,bestBoxInd,:] = 1.0 #select the sell to estimate object
