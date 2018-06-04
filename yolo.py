@@ -121,6 +121,7 @@ class YOLO(object):
                 pws, phs = [1/16.0,1/16.0],[1/16.0,2*1/16.0] #!!!!
                 #comparsion between anchor and object bbox(resized to last layer)
                 #so anchors stand for size estimation of target in last layer?
+                #update: now it switch to ratio
                 for pw, ph in zip(pws,phs):
                     intersect = np.minimum(pw,w) * np.minimum(ph,h)
                     ious.append( intersect / (pw*ph + w*h - intersect) )
@@ -129,7 +130,9 @@ class YOLO(object):
                 boxCls[b,indy,indx,bestBoxInd,:] = cls #target class id
                 boxObj[b,indy,indx,bestBoxInd,:] = 1.0 #target objectness
                 tx,ty = x0 * W - indx, y0 * H - indy #xy is offset from cell left-top(not image)
-                tw,th = math.sqrt(w),math.sqrt(h) #for loss reasion, here set target to be sqrted
+                #for loss reasion, here set target to be sqrted+
+                #updated: using log to replace sqrt (failure if you using log(w) instead of log(1+w)
+                tw,th = np.log(1+w),np.log(1+h)
                 boxXYWH[b,indy,indx,bestBoxInd,:] = nd.array([tx,ty,tw,th])
         return boxMask, boxCls, boxObj, boxXYWH
     def valid(self):
@@ -214,8 +217,9 @@ class YOLO(object):
         DX = nd.tile(nd.arange(0,width,repeat=boxNum,ctx=XYWH.context).reshape((1,1,width,boxNum,1)),(batchSize,height,1,1,1))
         X = (X + DX) / width
         Y = (Y + DY) / height
-        W = W ** 2
-        H = H ** 2
+        #pdb.set_trace()
+        W = nd.exp(W) - 1
+        H = nd.exp(H) - 1
 
         
         W = nd.clip(W,0,1)
